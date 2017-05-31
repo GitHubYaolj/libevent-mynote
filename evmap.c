@@ -76,6 +76,13 @@ struct evmap_signal {
 #ifdef EVMAP_USE_HT
 struct event_map_entry {
 	HT_ENTRY(event_map_entry) map_node;
+    /*
+          #define HT_ENTRY(type)                     \
+          struct {                                             \
+            struct type *hte_next;                      \
+            unsigned hte_hash;                          \
+          }
+        */
 	evutil_socket_t fd;
 	union { /* This is a union in case we need to make more things that can
 			   be in the hashtable. */

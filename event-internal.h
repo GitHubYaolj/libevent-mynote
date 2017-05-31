@@ -116,7 +116,21 @@ HT_HEAD(event_io_map, event_map_entry);
 #else
 #define event_io_map event_signal_map
 #endif
-
+#if 0
+#define HT_HEAD(name, type)                                             \
+  struct name {                                                         \
+    /* The hash table itself. */                                        \
+    struct type **hth_table;     //哈希表                                       \
+    /* How long is the hash table? */                                   \
+    unsigned hth_table_length;   //哈希表的长度                                       \
+    /* How many elements does the table contain? */                     \
+    unsigned hth_n_entries;      //哈希的元素个数                                       \
+    /* How many elements will we allow in the table before resizing it? */ \
+    unsigned hth_load_limit;                                            \
+    /* Position of hth_table_length in the primes table. */             \
+    int hth_prime_idx;                                                  \
+  }
+#endif
 /* Used to map signal numbers to a list of events.  If EVMAP_USE_HT is not
    defined, this structure is also used as event_io_map, which maps fds to a
    list of events.
@@ -236,7 +250,7 @@ struct event_base {
 	struct event_signal_map sigmap;
 
 	/** All events that have been enabled (added) in this event_base */
-	struct event_list eventqueue;
+	struct event_list eventqueue; //TAILQ_HEAD (event_list, event);
 
 	/** Stored timeval; used to detect when time is running backwards. */
 	struct timeval event_tv;

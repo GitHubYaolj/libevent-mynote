@@ -106,6 +106,13 @@ struct event {
 		/* used by signal events */
 		struct {
 			TAILQ_ENTRY(event) ev_signal_next;
+            #if 0
+                    #define TAILQ_ENTRY(type)						\
+                    struct {								\
+                    	struct type *tqe_next;	/* next element */			\
+                    	struct type **tqe_prev;	/* address of previous next element */	\
+                    }
+            #endif
 			short ev_ncalls;
 			/* Allows deletes in callback */
 			short *ev_pncalls;
