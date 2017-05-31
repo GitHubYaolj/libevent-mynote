@@ -1,0 +1,32 @@
+---- evsel Matches (36 in 5 files) ----
+Epoll.c (libevent-2.0.21-stable):		base->evsel = &epollops_changelist;
+Event-internal.h (libevent-2.0.21-stable):	const struct eventop *evsel;
+Event.c (libevent-2.0.21-stable):	return base->evsel->features;
+Event.c (libevent-2.0.21-stable):		base->evsel = eventops[i];
+Event.c (libevent-2.0.21-stable):		base->evbase = base->evsel->init(base);
+Event.c (libevent-2.0.21-stable):		base->evsel = NULL;
+Event.c (libevent-2.0.21-stable):		event_msgx("libevent using: %s", base->evsel->name);
+Event.c (libevent-2.0.21-stable):	if (base->evsel != NULL && base->evsel->dealloc != NULL)
+Event.c (libevent-2.0.21-stable):		base->evsel->dealloc(base);
+Event.c (libevent-2.0.21-stable):	const struct eventop *evsel;
+Event.c (libevent-2.0.21-stable):	evsel = base->evsel;
+Event.c (libevent-2.0.21-stable):	if (!evsel->need_reinit)
+Event.c (libevent-2.0.21-stable):	if (base->evsel->dealloc != NULL)
+Event.c (libevent-2.0.21-stable):		base->evsel->dealloc(base);
+Event.c (libevent-2.0.21-stable):	base->evbase = evsel->init(base);
+Event.c (libevent-2.0.21-stable):	return (base->evsel->name);
+Event.c (libevent-2.0.21-stable):	const struct eventop *evsel = base->evsel;
+Event.c (libevent-2.0.21-stable):	/* Grab the lock.  We will release it inside evsel.dispatch, and again
+Event.c (libevent-2.0.21-stable):		res = evsel->dispatch(base, tv_p);
+Event.c (libevent-2.0.21-stable):	return (current_base->evsel->name);
+Event.c (libevent-2.0.21-stable):		if ((base->evsel->features & EV_FEATURE_FDS)) {
+Evmap.c (libevent-2.0.21-stable):	const struct eventop *evsel = base->evsel;
+Evmap.c (libevent-2.0.21-stable):						 evsel->fdinfo_len);
+Evmap.c (libevent-2.0.21-stable):		if (evsel->add(base, ev->ev_fd,
+Evmap.c (libevent-2.0.21-stable):	const struct eventop *evsel = base->evsel;
+Evmap.c (libevent-2.0.21-stable):		if (evsel->del(base, ev->ev_fd, old, res, extra) == -1)
+Evmap.c (libevent-2.0.21-stable):	const struct eventop *evsel = base->evsigsel;
+Evmap.c (libevent-2.0.21-stable):		if (evsel->add(base, ev->ev_fd, 0, EV_SIGNAL, NULL)
+Evmap.c (libevent-2.0.21-stable):	const struct eventop *evsel = base->evsigsel;
+Evmap.c (libevent-2.0.21-stable):		if (evsel->del(base, ev->ev_fd, 0, EV_SIGNAL, NULL) == -1)
+Signal.c (libevent-2.0.21-stable):		    base, evsig_base, base->evsel->name);
