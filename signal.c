@@ -166,7 +166,7 @@ evsig_cb(evutil_socket_t fd, short what, void *arg)
 }
 
 int
-evsig_init(struct event_base *base)
+evsig_init(struct event_base *base)//创建socketpair并将socketpair的一个读端与ev_signal相关联
 {
 	/*
 	 * Our signal handler is going to write to one end of the socket
@@ -185,8 +185,8 @@ evsig_init(struct event_base *base)
 		return -1;
 	}
 
-	evutil_make_socket_closeonexec(base->sig.ev_signal_pair[0]);
-	evutil_make_socket_closeonexec(base->sig.ev_signal_pair[1]);
+	evutil_make_socket_closeonexec(base->sig.ev_signal_pair[0]);//不能让子进程可以访问的这个socketpair
+	evutil_make_socket_closeonexec(base->sig.ev_signal_pair[1]);//不能让子进程可以访问的这个socketpair
 	base->sig.sh_old = NULL;
 	base->sig.sh_old_max = 0;
 
@@ -195,9 +195,11 @@ evsig_init(struct event_base *base)
 
 	event_assign(&base->sig.ev_signal, base, base->sig.ev_signal_pair[1],
 		EV_READ | EV_PERSIST, evsig_cb, base);
+    //将ev_signal_pair[1]与ev_signal这个event相关联。ev_signal_pair[1]为读端  
+    //该函数的作用等同于event_new。实际上event_new内部也是调用event_assign函数完成工作的
 
 	base->sig.ev_signal.ev_flags |= EVLIST_INTERNAL;
-	event_priority_set(&base->sig.ev_signal, 0);
+	event_priority_set(&base->sig.ev_signal, 0);//最高优先级
 
 	base->evsigsel = &evsigops;
 
@@ -293,11 +295,11 @@ evsig_add(struct event_base *base, evutil_socket_t evsignal, short old, short ev
 	}
 	evsig_base = base;
 	evsig_base_n_signals_added = ++sig->ev_n_signals_added;
-	evsig_base_fd = base->sig.ev_signal_pair[0];
+	evsig_base_fd = base->sig.ev_signal_pair[0];//写端。0是写端
 	EVSIGBASE_UNLOCK();
 
 	event_debug(("%s: %d: changing signal handler", __func__, (int)evsignal));
-	if (_evsig_set_handler(base, (int)evsignal, evsig_handler) == -1) {
+	if (_evsig_set_handler(base, (int)evsignal, evsig_handler) == -1) {//绑定信号触发函数，evsig_handler()中会向管道发送一个字节
 		goto err;
 	}
 

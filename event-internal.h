@@ -225,7 +225,7 @@ struct event_base {
 	 * have triggered, and whose callbacks need to be called).  Low
 	 * priority numbers are more important, and stall higher ones.
 	 */
-	struct event_list *activequeues;
+	struct event_list *activequeues; //一组激活队列，数量和优先级有关nactivequeues
 	/** The length of the activequeues array */
 	int nactivequeues;
 
@@ -250,7 +250,7 @@ struct event_base {
 	struct event_signal_map sigmap;
 
 	/** All events that have been enabled (added) in this event_base */
-	struct event_list eventqueue; //TAILQ_HEAD (event_list, event);
+	struct event_list eventqueue;  //TAILQ_HEAD (event_list, event);
 
 	/** Stored timeval; used to detect when time is running backwards. */
 	struct timeval event_tv;
@@ -302,7 +302,7 @@ struct event_base {
 	evutil_socket_t th_notify_fd[2];
 	/** An event used by some th_notify functions to wake up the main
 	 * thread. */
-	struct event th_notify;
+	struct event th_notify; //通知主线程
 	/** A function used to wake up the main thread from another thread. */
 	int (*th_notify_fn)(struct event_base *base);
 };

@@ -1268,14 +1268,14 @@ event_persist_closure(struct event_base *base, struct event *ev)
 			&ev->ev_io_timeout));
 		gettime(base, &now);
 		if (is_common_timeout(&ev->ev_timeout, base)) {
-			delay = ev->ev_io_timeout;
+			delay = ev->ev_io_timeout;//delay是用户设置的超时时间。event_add的第二个参数
 			usec_mask = delay.tv_usec & ~MICROSECONDS_MASK;
 			delay.tv_usec &= MICROSECONDS_MASK;
-			if (ev->ev_res & EV_TIMEOUT) {
+			if (ev->ev_res & EV_TIMEOUT) {//如果是因为超时而激活，那么下次超时就是本次超时的加上 delay 时间
 				relative_to = ev->ev_timeout;
 				relative_to.tv_usec &= MICROSECONDS_MASK;
 			} else {
-				relative_to = now;
+				relative_to = now;//重新计算超时值
 			}
 		} else {
 			delay = ev->ev_io_timeout;
@@ -1295,6 +1295,7 @@ event_persist_closure(struct event_base *base, struct event *ev)
 			evutil_timeradd(&now, &delay, &run_at);
 		}
 		run_at.tv_usec |= usec_mask;
+        //把这个event再次添加到event_base中。注意，此时第三个参数为1，说明是一个绝对时间
 		event_add_internal(ev, &run_at, 1);
 	}
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
@@ -1318,10 +1319,10 @@ event_process_active_single_queue(struct event_base *base,
 	EVUTIL_ASSERT(activeq != NULL);
 
 	for (ev = TAILQ_FIRST(activeq); ev; ev = TAILQ_FIRST(activeq)) {
-		if (ev->ev_events & EV_PERSIST)
+		if (ev->ev_events & EV_PERSIST)//如果是永久事件，那么只需从active队列中删除。
 			event_queue_remove(base, ev, EVLIST_ACTIVE);
 		else
-			event_del_internal(ev);
+			event_del_internal(ev);//不是的话，那么就要把这个event删除掉。
 		if (!(ev->ev_flags & EVLIST_INTERNAL))
 			++count;
 
@@ -1341,14 +1342,16 @@ event_process_active_single_queue(struct event_base *base,
 		case EV_CLOSURE_SIGNAL:
 			event_signal_closure(base, ev);
 			break;
+        //这个case只对超时event的EV_PERSIST才有用。IO的没有用
 		case EV_CLOSURE_PERSIST:
 			event_persist_closure(base, ev);
 			break;
 		default:
 		case EV_CLOSURE_NONE:
+            //没有设置EV_PERSIST的超时event，就只有一次的监听机会
 			EVBASE_RELEASE_LOCK(base, th_base_lock);
 			(*ev->ev_callback)(
-				ev->ev_fd, ev->ev_res, ev->ev_arg);
+				ev->ev_fd, ev->ev_res, ev->ev_arg);//调用用户设置的回调函数。
 			break;
 		}
 
@@ -1412,8 +1415,9 @@ event_process_active(struct event_base *base)
 	/* Caller must hold th_base_lock */
 	struct event_list *activeq = NULL;
 	int i, c = 0;
-
+    //从高优先级到低优先级遍历优先级数组
 	for (i = 0; i < base->nactivequeues; ++i) {
+        //对于特定的优先级，遍历该优先级的所有激活event
 		if (TAILQ_FIRST(&base->activequeues[i]) != NULL) {
 			base->event_running_priority = i;
 			activeq = &base->activequeues[i];
@@ -1583,7 +1587,7 @@ event_base_loop(struct event_base *base, int flags)
 
 		tv_p = &tv;
 		if (!N_ACTIVE_CALLBACKS(base) && !(flags & EVLOOP_NONBLOCK)) {
-			timeout_next(base, &tv_p);
+			timeout_next(base, &tv_p);// 根据Timer事件计算evsel->dispatch的最大等待时间(超时值最小)
 		} else {
 			/*
 			 * if we have active events, we just poll new events
@@ -1604,7 +1608,7 @@ event_base_loop(struct event_base *base, int flags)
 
 		clear_time_cache(base);
 
-		res = evsel->dispatch(base, tv_p);
+		res = evsel->dispatch(base, tv_p);//将调用多路IO复用函数，对event进行监听，并且把满足条件的event放到event_base的激活队列中
 
 		if (res == -1) {
 			event_debug(("%s: dispatch returned unsuccessfully.",
@@ -1615,10 +1619,10 @@ event_base_loop(struct event_base *base, int flags)
 
 		update_time_cache(base);
 
-		timeout_process(base);
+		timeout_process(base);//把超时了的event，放到激活队列中。并且，其激活原因设置为EV_TIMEOUT
 
 		if (N_ACTIVE_CALLBACKS(base)) {
-			int n = event_process_active(base);
+			int n = event_process_active(base);//遍历这个激活队列的所有event，逐个调用对应的回调函数
 			if ((flags & EVLOOP_ONCE)
 			    && N_ACTIVE_CALLBACKS(base) == 0
 			    && n != 0)
@@ -2320,7 +2324,7 @@ event_active_nolock(struct event *ev, int res, short ncalls)
 		ev->ev_pncalls = NULL;
 	}
 
-	event_queue_insert(base, ev, EVLIST_ACTIVE);
+	event_queue_insert(base, ev, EVLIST_ACTIVE);//将ev插入到激活队列  
 
 	if (EVBASE_NEED_NOTIFY(base))
 		evthread_notify_base(base);
@@ -2484,16 +2488,26 @@ timeout_process(struct event_base *base)
 	}
 
 	gettime(base, &now);
-
+    //遍历小根堆的元素。之所以不是只取堆顶那一个元素，是因为当主线程调用多路IO复用函数  
+    //进入等待时，次线程可能添加了多个超时值更小的event 
 	while ((ev = min_heap_top(&base->timeheap))) {
+        //超时时间比此刻时间大，说明该event还没超时。那么余下的小根堆元素更不用检查了。
 		if (evutil_timercmp(&ev->ev_timeout, &now, >))
 			break;
 
 		/* delete this event from the I/O queues */
+        //下面说到的del是等同于调用event_del.把event从这个event_base中(所有的队列都)  
+        //删除。event_base不再监听之。  
+        //这里是timeout_process函数。所以对于有超时的event，才会被del掉。  
+        //对于有EV_PERSIST选项的event，在处理激活event的时候，会再次添加进event_base的。  
+        //这样做的一个好处就是，再次添加的时候，又可以重新计算该event的超时时间(绝对时间)。
 		event_del_internal(ev);
 
 		event_debug(("timeout_process: call %p",
 			 ev->ev_callback));
+        //把这个event加入到event_base的激活队列中。  
+        //event_base的激活队列又有该event了。所以如果该event是EV_PERSIST的，是可以  
+        //再次添加进该event_base的 
 		event_active_nolock(ev, EV_TIMEOUT, 1);
 	}
 }
@@ -2798,9 +2812,9 @@ evthread_make_base_notifiable(struct event_base *base)
 		}
 	}
 
-	evutil_make_socket_nonblocking(base->th_notify_fd[0]);
+	evutil_make_socket_nonblocking(base->th_notify_fd[0]);//无论哪种通信机制，都要使得读端不能阻塞
 
-	base->th_notify_fn = notify;
+	base->th_notify_fn = notify;//设置回调函数
 
 	/*
 	  Making the second socket nonblocking is a bit subtle, given that we

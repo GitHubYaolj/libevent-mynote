@@ -92,11 +92,15 @@ struct event {
 		TAILQ_ENTRY(event) ev_next_with_common_timeout;
 		int min_heap_idx;
 	} ev_timeout_pos;
-	evutil_socket_t ev_fd;
+	evutil_socket_t ev_fd; //对于I/O事件，是文件描述符；对于signal事件，是信号值 
 
-	struct event_base *ev_base;
+	struct event_base *ev_base;//所属的event_base
 
 	union {
+        //无论是信号还是IO，都有一个TAILQ_ENTRY的队列。它用于这样的情景:  
+        //用户对 同一个fd 调用event_new多次，并且都使用了不同的回调函数。  
+        //每次调用event_new都会产生一个 event* 。这个xxx_next成员就是把这些  
+        //event连接起来的。
 		/* used for io events */
 		struct {
 			TAILQ_ENTRY(event) ev_io_next;
@@ -117,18 +121,18 @@ struct event {
 			/* Allows deletes in callback */
 			short *ev_pncalls;
 		} ev_signal;
-	} _ev;
+	} _ev;    //#define ev_io_timeout   _ev.ev_io.ev_timeout
 
-	short ev_events;
-	short ev_res;		/* result passed to event callback */
+	short ev_events;    //记录监听的事件类型 EV_READ EVTIMEOUT之类
+	short ev_res;		/* result passed to event callback */ //记录了当前激活事件的类型
 	short ev_flags;
-	ev_uint8_t ev_pri;	/* smaller numbers are higher priority */
+	ev_uint8_t ev_pri;	/* smaller numbers are higher priority */ //本event的优先级。调用event_priority_set设置
 	ev_uint8_t ev_closure;
-	struct timeval ev_timeout;
+	struct timeval ev_timeout;//用于定时器,指定定时器的超时值
 
 	/* allows us to adopt for different types of events */
-	void (*ev_callback)(evutil_socket_t, short, void *arg);
-	void *ev_arg;
+	void (*ev_callback)(evutil_socket_t, short, void *arg); //回调函数
+	void *ev_arg;//回调函数的参数
 };
 
 TAILQ_HEAD (event_list, event);

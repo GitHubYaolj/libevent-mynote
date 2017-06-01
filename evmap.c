@@ -55,7 +55,7 @@
 	write on a given fd, and the number of each.
   */
 struct evmap_io {
-	struct event_list events;
+	struct event_list events;//TAILQ_HEAD (event_list, event);
 	ev_uint16_t nread;
 	ev_uint16_t nwrite;
 };
@@ -288,8 +288,56 @@ evmap_io_add(struct event_base *base, evutil_socket_t fd, struct event *ev)
 	}
 #endif
 	GET_IO_SLOT_AND_CTOR(ctx, io, fd, evmap_io, evmap_io_init,
-						 evsel->fdinfo_len);
+						 evsel->fdinfo_len);//让ctx指向struct event_map_entry结构体中的TAILQ_HEAD
+#if 0
 
+struct event_map_entry {
+	HT_ENTRY(event_map_entry) map_node;
+    /*
+          #define HT_ENTRY(type)                     \
+          struct {                                             \
+            struct type *hte_next;                      \
+            unsigned hte_hash;                          \
+          }
+        */
+	evutil_socket_t fd;
+	union { /* This is a union in case we need to make more things that can
+			   be in the hashtable. */
+		struct evmap_io evmap_io;
+	} ent;
+};
+struct event_io_map   //如下
+struct event_signal_map {
+	/* An array of evmap_io * or of evmap_signal *; empty entries are
+	 * set to NULL. */
+	void **entries;
+	/* The number of entries available in entries */
+	int nentries;
+};
+event_io_map_HT_GROW
+
+
+#define GET_IO_SLOT_AND_CTOR(x, map, slot, type, ctor, fdinfo_len)	\
+	do {								\
+		struct event_map_entry _key, *_ent;			\
+		_key.fd = slot;						\
+		_HT_FIND_OR_INSERT(event_io_map, map_node, hashsocket, map, \
+		    event_map_entry, &_key, ptr,			\
+		    {							\
+			    _ent = *ptr;				\
+		    },							\
+		    {							\
+			    _ent = mm_calloc(1,sizeof(struct event_map_entry)+fdinfo_len); \
+			    if (EVUTIL_UNLIKELY(_ent == NULL))		\
+				    return (-1);			\
+			    _ent->fd = slot;				\
+			    (ctor)(&_ent->ent.type);			\
+			    _HT_FOI_INSERT(map_node, map, &_key, _ent, ptr) \
+				});					\
+		(x) = &_ent->ent.type;					\
+	} while (0)
+
+#endif
 	nread = ctx->nread;
 	nwrite = ctx->nwrite;
 
@@ -403,9 +451,13 @@ evmap_io_active(struct event_base *base, evutil_socket_t fd, short events)
 #ifndef EVMAP_USE_HT
 	EVUTIL_ASSERT(fd < io->nentries);
 #endif
-	GET_IO_SLOT(ctx, io, fd, evmap_io);
-
+	GET_IO_SLOT(ctx, io, fd, evmap_io);////由这个fd找到对应event_map_entry的TAILQ_HEAD.
+#if 0
+    #define GET_SIGNAL_SLOT(x, map, slot, type)			\
+	(x) = (struct type *)((map)->entries[slot])
+#endif
 	EVUTIL_ASSERT(ctx);
+//遍历这个队列。将所有与fd相关联的event结构体都处理一遍
 	TAILQ_FOREACH(ev, &ctx->events, ev_io_next) {
 		if (ev->ev_events & events)
 			event_active_nolock(ev, ev->ev_events & events, 1);
