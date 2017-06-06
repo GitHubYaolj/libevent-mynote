@@ -190,9 +190,9 @@ evconnlistener_new(struct event_base *base,
 	}
 
 	event_assign(&lev->listener, base, fd, EV_READ|EV_PERSIST,
-	    listener_read_cb, lev);
+	    listener_read_cb, lev);//有client connect后,listener_read_cb()会accept
 
-	evconnlistener_enable(&lev->base);
+	evconnlistener_enable(&lev->base);//会调用event_add，把event加入到event_base中 
 
 	return &lev->base;
 }
@@ -283,7 +283,7 @@ evconnlistener_enable(struct evconnlistener *lev)
 	LOCK(lev);
 	lev->enabled = 1;
 	if (lev->cb)
-		r = lev->ops->enable(lev);
+		r = lev->ops->enable(lev);//实际上是调用下面的event_listener_enable函数
 	else
 		r = 0;
 	UNLOCK(lev);

@@ -1168,16 +1168,17 @@ common_timeout_callback(evutil_socket_t fd, short what, void *arg)
 		    (ev->ev_timeout.tv_sec == now.tv_sec &&
 			(ev->ev_timeout.tv_usec&MICROSECONDS_MASK) > now.tv_usec))
 			break;
-		event_del_internal(ev);
-		event_active_nolock(ev, EV_TIMEOUT, 1);
+		event_del_internal(ev); //从这个超时event队列中删除
+		event_active_nolock(ev, EV_TIMEOUT, 1); //手动激活超时event。注意，这个ev是用户的超时event
 	}
-	if (ev)
+	if (ev)//不是NULL，说明该队列还有超时event。那么需要再次common_timeout_schedule，进行监听
 		common_timeout_schedule(ctl, &now, ev);
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 }
 
 #define MAX_COMMON_TIMEOUTS 256
 
+//申请一个时长为duration的common_timeout_list
 const struct timeval *
 event_base_init_common_timeout(struct event_base *base,
     const struct timeval *duration)
@@ -1199,6 +1200,7 @@ event_base_init_common_timeout(struct event_base *base,
 	for (i = 0; i < base->n_common_timeouts; ++i) {
 		const struct common_timeout_list *ctl =
 		    base->common_timeout_queues[i];
+        //具有相同的duration， 即之前有申请过这个超时时长。那么就不用分配空间。
 		if (duration->tv_sec == ctl->duration.tv_sec &&
 		    duration->tv_usec ==
 		    (ctl->duration.tv_usec & MICROSECONDS_MASK)) {
@@ -1207,12 +1209,14 @@ event_base_init_common_timeout(struct event_base *base,
 			goto done;
 		}
 	}
+    //达到了最大申请个数，不能再分配了
 	if (base->n_common_timeouts == MAX_COMMON_TIMEOUTS) {
 		event_warnx("%s: Too many common timeouts already in use; "
 		    "we only support %d per event_base", __func__,
 		    MAX_COMMON_TIMEOUTS);
 		goto done;
 	}
+    //之前分配的空间已经用完了，要重新申请空间
 	if (base->n_common_timeouts_allocated == base->n_common_timeouts) {
 		int n = base->n_common_timeouts < 16 ? 16 :
 		    base->n_common_timeouts*2;
@@ -1226,6 +1230,7 @@ event_base_init_common_timeout(struct event_base *base,
 		base->n_common_timeouts_allocated = n;
 		base->common_timeout_queues = newqueues;
 	}
+    //为该超时时长分配一个common_timeout_list结构体
 	new_ctl = mm_calloc(1, sizeof(struct common_timeout_list));
 	if (!new_ctl) {
 		event_warn("%s: calloc",__func__);
@@ -1234,14 +1239,15 @@ event_base_init_common_timeout(struct event_base *base,
 	TAILQ_INIT(&new_ctl->events);
 	new_ctl->duration.tv_sec = duration->tv_sec;
 	new_ctl->duration.tv_usec =
-	    duration->tv_usec | COMMON_TIMEOUT_MAGIC |
-	    (base->n_common_timeouts << COMMON_TIMEOUT_IDX_SHIFT);
-	evtimer_assign(&new_ctl->timeout_event, base,
+	    duration->tv_usec | COMMON_TIMEOUT_MAGIC |//为这个时间加入common-timeout标志
+	    (base->n_common_timeouts << COMMON_TIMEOUT_IDX_SHIFT);//加入下标值
+    //对timeout_event这个内部event进行赋值。设置回调函数和回调参数。
+    evtimer_assign(&new_ctl->timeout_event, base,
 	    common_timeout_callback, new_ctl);
-	new_ctl->timeout_event.ev_flags |= EVLIST_INTERNAL;
-	event_priority_set(&new_ctl->timeout_event, 0);
+	new_ctl->timeout_event.ev_flags |= EVLIST_INTERNAL;//标志成内部event
+	event_priority_set(&new_ctl->timeout_event, 0);//优先级为最高级
 	new_ctl->base = base;
-	base->common_timeout_queues[base->n_common_timeouts++] = new_ctl;
+	base->common_timeout_queues[base->n_common_timeouts++] = new_ctl;//放到数组对应的位置上 
 	result = &new_ctl->duration;
 
 done:
@@ -2150,13 +2156,16 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 		event_debug((
 			 "event_add: timeout in %d seconds, call %p",
 			 (int)tv->tv_sec, ev->ev_callback));
-
+//event_queue_insert插入，并不是插入到小根堆。它只是插入到event_base的common_timeout_list数组的一个队列中
 		event_queue_insert(base, ev, EVLIST_TIMEOUT);
 		if (common_timeout) {
 			struct common_timeout_list *ctl =
 			    get_common_timeout_list(base, &ev->ev_timeout);
 			if (ev == TAILQ_FIRST(&ctl->events)) {
 				common_timeout_schedule(ctl, &now, ev);
+//清除common-timeout标志  
+//用common_timeout_list结构体的一个event成员作为超时event调用event_add_internal  
+//由于已经清除了common-timeout标志，所以这次将插入到小根堆中。    
 			}
 		} else {
 			/* See if the earliest timeout is now earlier than it
@@ -2234,7 +2243,7 @@ event_del_internal(struct event *ev)
 			*ev->ev_pncalls = 0;
 		}
 	}
-
+    //从超时集合中删除
 	if (ev->ev_flags & EVLIST_TIMEOUT) {
 		/* NOTE: We never need to notify the main thread because of a
 		 * deleted timeout event: all that could happen if we don't is
@@ -2245,13 +2254,15 @@ event_del_internal(struct event *ev)
 		 */
 		event_queue_remove(base, ev, EVLIST_TIMEOUT);
 	}
-
+    //该event已经在active队列中了。那么需要在active队列中删除之
 	if (ev->ev_flags & EVLIST_ACTIVE)
 		event_queue_remove(base, ev, EVLIST_ACTIVE);
-
+    //该event已经在注册队列(eventqueue)中了，那么需要在注册队列中删除之
 	if (ev->ev_flags & EVLIST_INSERTED) {
 		event_queue_remove(base, ev, EVLIST_INSERTED);
-		if (ev->ev_events & (EV_READ|EV_WRITE))
+        //此外还要在该fd或者sig队列中删除之。同一个fd可以有多个event。  
+        //所以这里还有一个队列 
+        if (ev->ev_events & (EV_READ|EV_WRITE))
 			res = evmap_io_del(base, ev->ev_fd, ev);
 		else
 			res = evmap_signal_del(base, (int)ev->ev_fd, ev);
@@ -2308,7 +2319,10 @@ event_active_nolock(struct event *ev, int res, short ncalls)
 
 	EVENT_BASE_ASSERT_LOCKED(base);
 
-	ev->ev_res = res;
+	ev->ev_res = res;//记录被激活原因。以后会用到
+	//手动激活一个event是直接把这个event插入到激活队列的，
+	//所以event的被激活原因(由res参数所指定)可以不是该event监听的事件。
+	//比如说该event只监听了EV_READ事件，那么可以调用event_active(ev,EV_SIGNAL, 1);用信号事件激活该event。
 
 	if (ev->ev_pri < base->event_running_priority)
 		base->event_continue = 1;
@@ -2326,7 +2340,7 @@ event_active_nolock(struct event *ev, int res, short ncalls)
 
 	event_queue_insert(base, ev, EVLIST_ACTIVE);//将ev插入到激活队列  
 
-	if (EVBASE_NEED_NOTIFY(base))
+	if (EVBASE_NEED_NOTIFY(base))//调用本函数的线程不是主线程的话，就会通知主线程。使得主线程能赶快处理激活event 
 		evthread_notify_base(base);
 }
 

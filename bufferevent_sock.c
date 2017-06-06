@@ -162,6 +162,7 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 		goto done;
 
 	evbuffer_unfreeze(input, 0);
+    //从socket fd中读取数据 
 	res = evbuffer_read(input, fd, (int)howmuch); /* XXXX evbuffer_read would do better to take and return ev_ssize_t */
 	evbuffer_freeze(input, 0);
 
@@ -183,7 +184,7 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 
 	/* Invoke the user callback - must always be called last */
 	if (evbuffer_get_length(input) >= bufev->wm_read.low)
-		_bufferevent_run_readcb(bufev);
+		_bufferevent_run_readcb(bufev);//调用用户在bufferevent中设置的回调函数
 
 	goto done;
 
@@ -261,9 +262,12 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 
 	if (bufev_p->write_suspended)
 		goto done;
-
+    
+    //如果evbuffer有数据可以写到sockfd中
 	if (evbuffer_get_length(bufev->output)) {
 		evbuffer_unfreeze(bufev->output, 1);
+        //将output这个evbuffer的数据写到socket fd 的缓冲区中  
+        //会把已经写到socket fd缓冲区的数据，从evbuffer中删除
 		res = evbuffer_write_atmost(bufev->output, fd, atmost);
 		evbuffer_freeze(bufev->output, 1);
 		if (res == -1) {
@@ -283,7 +287,11 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 
 		_bufferevent_decrement_write_buckets(bufev_p, res);
 	}
-
+    //如果把写缓冲区的数据都写完成了。为了防止event_base不断地触发可写  
+    //事件，此时要把这个监听可写的event删除。  
+    //前面的atmost限制了一次最大的可写数据。如果还没写所有的数据  
+    //那么就不能delete这个event，而是要继续监听可写事情，直到把所有的  
+    //数据都写到socket fd中。 
 	if (evbuffer_get_length(bufev->output) == 0) {
 		event_del(&bufev->ev_write);
 	}
@@ -292,6 +300,8 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	 * Invoke the user callback if our buffer is drained or below the
 	 * low watermark.
 	 */
+	//如果evbuffer里面的数据量已经写得七七八八了，小于设置的低水位值，那么  
+    //就会调用用户设置的写事件回调函数
 	if ((res || !connected) &&
 	    evbuffer_get_length(bufev->output) <= bufev->wm_write.low) {
 		_bufferevent_run_writecb(bufev);

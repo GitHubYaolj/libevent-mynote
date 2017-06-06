@@ -94,6 +94,10 @@ struct evbuffer {
 	 * is the first chain, or it is NULL, then the last_with_datap pointer
 	 * is &buf->first.
 	 */
+	 //这是一个二级指针。使用*last_with_datap时，指向的是链表中最后一个有数据的evbuffer_chain。  
+    //所以last_with_datap存储的是倒数第二个evbuffer_chain的next成员地址。  
+    //一开始buffer->last_with_datap = &buffer->first;此时first为NULL。所以当链表没有节点时  
+    //*last_with_datap为NULL。当只有一个节点时*last_with_datap就是first。
 	struct evbuffer_chain **last_with_datap;
 
 	/** Total amount of bytes stored in all chains.*/
@@ -163,11 +167,13 @@ struct evbuffer_chain {
 
 	/** unused space at the beginning of buffer or an offset into a
 	 * file for sendfile buffers. */
-	ev_off_t misalign;
+	ev_off_t misalign;//错开不使用的空间。该成员的值一般等于0 
 
 	/** Offset into buffer + misalign at which to start writing.
 	 * In other words, the total number of bytes actually stored
 	 * in buffer. */
+	 //evbuffer_chain已存数据的字节数  
+    //所以要从buffer + misalign + off的位置开始写入数据
 	size_t off;
 
 	/** Set if special handling is required for this chain */
