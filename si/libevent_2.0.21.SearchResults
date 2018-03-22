@@ -1,32 +1,43 @@
----- evsel Matches (36 in 5 files) ----
-Epoll.c (libevent-2.0.21-stable):		base->evsel = &epollops_changelist;
-Event-internal.h (libevent-2.0.21-stable):	const struct eventop *evsel;
-Event.c (libevent-2.0.21-stable):	return base->evsel->features;
-Event.c (libevent-2.0.21-stable):		base->evsel = eventops[i];
-Event.c (libevent-2.0.21-stable):		base->evbase = base->evsel->init(base);
-Event.c (libevent-2.0.21-stable):		base->evsel = NULL;
-Event.c (libevent-2.0.21-stable):		event_msgx("libevent using: %s", base->evsel->name);
-Event.c (libevent-2.0.21-stable):	if (base->evsel != NULL && base->evsel->dealloc != NULL)
-Event.c (libevent-2.0.21-stable):		base->evsel->dealloc(base);
-Event.c (libevent-2.0.21-stable):	const struct eventop *evsel;
-Event.c (libevent-2.0.21-stable):	evsel = base->evsel;
-Event.c (libevent-2.0.21-stable):	if (!evsel->need_reinit)
-Event.c (libevent-2.0.21-stable):	if (base->evsel->dealloc != NULL)
-Event.c (libevent-2.0.21-stable):		base->evsel->dealloc(base);
-Event.c (libevent-2.0.21-stable):	base->evbase = evsel->init(base);
-Event.c (libevent-2.0.21-stable):	return (base->evsel->name);
-Event.c (libevent-2.0.21-stable):	const struct eventop *evsel = base->evsel;
-Event.c (libevent-2.0.21-stable):	/* Grab the lock.  We will release it inside evsel.dispatch, and again
-Event.c (libevent-2.0.21-stable):		res = evsel->dispatch(base, tv_p);
-Event.c (libevent-2.0.21-stable):	return (current_base->evsel->name);
-Event.c (libevent-2.0.21-stable):		if ((base->evsel->features & EV_FEATURE_FDS)) {
-Evmap.c (libevent-2.0.21-stable):	const struct eventop *evsel = base->evsel;
-Evmap.c (libevent-2.0.21-stable):						 evsel->fdinfo_len);
-Evmap.c (libevent-2.0.21-stable):		if (evsel->add(base, ev->ev_fd,
-Evmap.c (libevent-2.0.21-stable):	const struct eventop *evsel = base->evsel;
-Evmap.c (libevent-2.0.21-stable):		if (evsel->del(base, ev->ev_fd, old, res, extra) == -1)
-Evmap.c (libevent-2.0.21-stable):	const struct eventop *evsel = base->evsigsel;
-Evmap.c (libevent-2.0.21-stable):		if (evsel->add(base, ev->ev_fd, 0, EV_SIGNAL, NULL)
-Evmap.c (libevent-2.0.21-stable):	const struct eventop *evsel = base->evsigsel;
-Evmap.c (libevent-2.0.21-stable):		if (evsel->del(base, ev->ev_fd, 0, EV_SIGNAL, NULL) == -1)
-Signal.c (libevent-2.0.21-stable):		    base, evsig_base, base->evsel->name);
+---- event_base_loop Matches (42 in 8 files) ----
+Event-internal.h (libevent-master\libevent-2.0.21-stable):	/** Set if we're running the event_base_loop function, to prevent
+Event.c (libevent-master\libevent-2.0.21-stable):	return (event_base_loop(event_base, 0));
+Event.c (libevent-master\libevent-2.0.21-stable):	return event_base_loop(current_base, flags);
+Event.c (libevent-master\libevent-2.0.21-stable):event_base_loop(struct event_base *base, int flags)
+Event.c (libevent-master\libevent-2.0.21-stable):		event_warnx("%s: reentrant invocation.  Only one event_base_loop"
+Event.h (libevent-master\libevent-2.0.21-stable\include\event2):  You can also use event_base_loop() for more fine-grained control.
+Event.h (libevent-master\libevent-2.0.21-stable\include\event2): * @see event_base_new(), event_base_free(), event_base_loop(),
+Event.h (libevent-master\libevent-2.0.21-stable\include\event2): * Events become active during an event_base_loop() call when either their
+Event.h (libevent-master\libevent-2.0.21-stable\include\event2):  @see event_base_loop()
+Event.h (libevent-master\libevent-2.0.21-stable\include\event2):    These flags control the behavior of event_base_loop().
+Event.h (libevent-master\libevent-2.0.21-stable\include\event2):int event_base_loop(struct event_base *, int);
+Event.h (libevent-master\libevent-2.0.21-stable\include\event2):  The next event_base_loop() iteration after the given timer expires will
+Event.h (libevent-master\libevent-2.0.21-stable\include\event2):  Subsequent invocations of event_base_loop() will proceed normally.
+Event.h (libevent-master\libevent-2.0.21-stable\include\event2):  Abort the active event_base_loop() immediately.
+Event.h (libevent-master\libevent-2.0.21-stable\include\event2):  event_base_loop() will abort the loop after the next event is completed;
+Event.h (libevent-master\libevent-2.0.21-stable\include\event2):  event_base_loop().
+Event.h (libevent-master\libevent-2.0.21-stable\include\event2):  event_base_loop() from another thread.
+Event_compat.h (libevent-master\libevent-2.0.21-stable\include\event2):  This function behaves like event_base_loop(), but uses the "current" base
+Event_compat.h (libevent-master\libevent-2.0.21-stable\include\event2):    use.  The replacement is event_base_loop().
+Event_compat.h (libevent-master\libevent-2.0.21-stable\include\event2):  @see event_base_loop(), event_init()
+Regress.c (libevent-master\libevent-2.0.21-stable\test):	event_base_loop(base, 0);
+Regress.c (libevent-master\libevent-2.0.21-stable\test):	event_base_loop(base2, EVLOOP_NONBLOCK);
+Regress.c (libevent-master\libevent-2.0.21-stable\test):	event_base_loop(base1, EVLOOP_NONBLOCK);
+Regress.c (libevent-master\libevent-2.0.21-stable\test):		event_base_loop(base1, EVLOOP_NONBLOCK);
+Regress.c (libevent-master\libevent-2.0.21-stable\test):		event_base_loop(base1, EVLOOP_NONBLOCK);
+Regress.c (libevent-master\libevent-2.0.21-stable\test):		event_base_loop(base2, EVLOOP_NONBLOCK);
+Regress.c (libevent-master\libevent-2.0.21-stable\test):	/* This reentrant call to event_base_loop should be detected and
+Regress.c (libevent-master\libevent-2.0.21-stable\test):	r = event_base_loop(base, 0);
+Regress.c (libevent-master\libevent-2.0.21-stable\test):	r = event_base_loop(base, 0);
+Regress.c (libevent-master\libevent-2.0.21-stable\test):	if (event_base_loop(base, 0))
+Regress.c (libevent-master\libevent-2.0.21-stable\test):	event_base_loop(base, EVLOOP_ONCE);
+Regress.c (libevent-master\libevent-2.0.21-stable\test):	event_base_loop(base, EVLOOP_ONCE);
+Regress.c (libevent-master\libevent-2.0.21-stable\test):	event_base_loop(base, EVLOOP_ONCE);
+Regress.c (libevent-master\libevent-2.0.21-stable\test):			event_base_loop(base, EVLOOP_NONBLOCK|EVLOOP_ONCE);
+Regress.c (libevent-master\libevent-2.0.21-stable\test):	event_base_loop(base, loopflags);
+Regress_dns.c (libevent-master\libevent-2.0.21-stable\test):	event_base_loop(env->base, EVLOOP_NONBLOCK);
+Regress_dns.c (libevent-master\libevent-2.0.21-stable\test):	event_base_loop(env->base, EVLOOP_NONBLOCK);
+Regress_et.c (libevent-master\libevent-2.0.21-stable\test):	 * from no data to data), so the second invocation of event_base_loop will
+Regress_et.c (libevent-master\libevent-2.0.21-stable\test):	 * event_base_loop will also activate the event (because there's still
+Regress_et.c (libevent-master\libevent-2.0.21-stable\test):	event_base_loop(base,EVLOOP_NONBLOCK|EVLOOP_ONCE);
+Regress_et.c (libevent-master\libevent-2.0.21-stable\test):	event_base_loop(base,EVLOOP_NONBLOCK|EVLOOP_ONCE);
+Signal.c (libevent-master\libevent-2.0.21-stable):		    "event_base_loop() call gets preference; do "
